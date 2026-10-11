@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>HTA File Manager</title>
+<hta:application
+    id="oHTA"
+    applicationname="MyFileManager"
+    border="thin"
+    caption="yes"
+    maximizebutton="yes"
+    minimizebutton="yes"
+    showintaskbar="yes"
+    singleinstance="no"
+    scroll="no"
+    contextmenu="no"
+    selection="no"
+    sysmenu="yes"
+    version="1.0" />
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; background: #f5f5f5; overflow: hidden; }
+
+    /* Tab bar */
+    #tabBar {
+        display: flex; background: #e0e0e0; padding: 4px 4px 0 4px; gap: 2px;
+        border-bottom: 1px solid #aaa; overflow-x: auto; white-space: nowrap;
+    }
+    .tab {
+        padding: 6px 14px; background: #d0d0d0; border: 1px solid #aaa; border-bottom: none;
+        border-radius: 6px 6px 0 0; cursor: pointer; user-select: none;
+        display: flex; align-items: center; gap: 8px; font-size: 12px;
+    }
+    .tab.active { background: #fff; font-weight: bold; position: relative; top: 1px; }
+    .tab .close {
+        font-size: 14px; line-height: 1; padding: 1px 4px; border-radius: 3px;
+        cursor: pointer; color: #666;
+    }
+    .tab .close:hover { background: #c00; color: #fff; }
+    #newTabBtn {
+        padding: 6px 12px; background: #d0d0d0; border: 1px solid #aaa; border-bottom: none;
+        border-radius: 6px 6px 0 0; cursor: pointer; font-size: 16px; line-height: 1;
+    }
+    #newTabBtn:hover { background: #c0c0c0; }
+
+    /* Toolbar */
+    #toolbar {
+        display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+        background: #fff; border-bottom: 1px solid #ccc;
+    }
+    #toolbar button {
+        padding: 5px 12px; border: 1px solid #aaa; background: #f0f0f0;
+        border-radius: 4px; cursor: pointer; font-size: 12px;
+    }
+    #toolbar button:hover { background: #e0e0e0; }
+    #pathInput {
+        flex: 1; padding: 5px 8px; border: 1px solid #aaa; border-radius: 4px;
+        font-size: 12px; font-family: Consolas, monospace;
+    }
+    #goBtn { padding: 5px 10px; }
+
+    /* Content area */
+    #contentArea { position: absolute; top: 98px; left: 0; right: 0; bottom: 0; overflow: auto; background: #fff; }
+    .pane { display: none; padding: 0; }
+    .pane.active { display: block; }
+
+    /* File list */
+    table.fileList { width: 100%; border-collapse: collapse; }
+    table.fileList thead th {
+        position: sticky; top: 0; background: #f0f0f0; border-bottom: 1px solid #ccc;
+        padding: 6px 8px; text-align: left; font-size: 12px; cursor: pointer; user-select: none;
+    }
+    table.fileList tbody tr { cursor: pointer; }
+    table.fileList tbody tr:hover { background: #e8f0fe; }
+    table.fileList tbody tr.selected { background: #cce5ff; }
+    table.fileList td { padding: 4px 8px; border-bottom: 1px solid #eee; font-size: 12px; }
+    .icon { margin-right: 6px; }
+    .folder { color: #e8a000; }
+    .file { color: #555; }
+    .size { text-align: right; color: #888; font-family: Consolas, monospace; font-size: 11px; }
+    .empty-msg { padding: 20px; color: #999; font-style: italic; }
+</style>
+<script type="text/javascript">
+    // ========== Global state ==========
+    var fso, shell;
+    var tabs = [];          // each tab state: { history: [], histIndex: 0, title: '', paneId: '' }
+    var activeTab = 0;
+    var tabCounter = 0;
+
+    // ========== Init ==========
+    function init() {
+        fso = new ActiveXObject("Scripting.FileSystemObject");
+        shell = new ActiveXObject("WScript.Shell");
+
+        // Create the first tab, open the user's Desktop
+        var desktop = shell.SpecialFolders("Desktop");
+        createTab(desktop);
+
+        // Global hotkeys
+        document.onkeydown = function (e) {
+            e = e || window.event;
+            if (e.keyCode === 27) { // ESC — close
+                window.close();
+            }
+            if (e.keyCode === 8) { // Backspace — go up
+                e.returnValue = false;
+                goUp();
+            }
+            if (e.keyCode === 116) { // F5 — refresh
+                e.returnValue = false;
+                refreshCurrent();
+            }
+        };
+    }
+
+    // ========== Tab management ==========
+    function createTab(startPath) {
+        var id = ++tabCounter;
+        var paneId = "pane_" + id;
+
+        // Create tab button
+        var tabEl = document.createElement("div");
+        tabEl.className = "tab";
+        tabEl.setAttribute("data-tab", id);
+        tabEl.innerHTML = '<span class="tab-title">New tab</span><span class="close" onclick="closeTab(event,' + id + ')">×</span>';
+        tabEl.onclick = function (ev) { if (!ev.target.classList.contains('close')) switchTab(id); };
+        document.getElementById("tabBar").insertBefore(tabEl, document.getElementById("newTabBtn"));
+
+        // Create content pane
+        var pane = document.createElement("div");
+        pane.className = "pane";
+        pane.id = paneId;
+        pane.innerHTML = '<table class="fileList"><thead><tr>' +
+            '<th style="width:55%">Name</th>' +
+            '<th style="width:15%">Type</th>' +
+            '<th style="width:15%">Size</th>' +
+            '<th style="width:15%">Date modified</th>' +
+            '</tr></thead><tbody></tbody></table>';
+        document.getElementById("contentArea").appendChild(pane);
+
+        // Save state
+        tabs.push({
+            id: id,
+            history: [startPath],
+            histIndex: 0,
+            title: "New tab"
+        });
+
+        // Switch to the new tab
+        switchTab(id);
+        navigateTo(startPath);
+    }
+
+    function switchTab(id) {
+        activeTab = id;
+        // Update tab styles
+        var allTabs = document.querySelectorAll(".tab");
+        for (var i = 0; i < allTabs.length; i++) {
+            var tid = parseInt(allTabs[i].getAttribute("data-tab"));
+            allTabs[i].className = (tid === id) ? "tab active" : "tab";
+        }
+        // Update pane visibility
+        var allPanes = document.querySelectorAll(".pane");
+        for (var j = 0; j < allPanes.length; j++) {
+            allPanes[j].className = "pane";
+        }
+        var pane = document.getElementById("pane_" + id);
+        if (pane) pane.className = "pane active";
+
+        // Update path field
+        var tab = getTab(id);
+        if (tab) {
+            document.getElementById("pathInput").value = tab.history[tab.histIndex];
+        }
+    }
+
+    function closeTab(ev, id) {
+        if (ev) ev.stopPropagation();
+        if (tabs.length <= 1) return; // keep at least one tab
+
+        var idx = -1;
+        for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) { idx = i; break; }
+        if (idx === -1) return;
+
+        // Remove DOM
+        var tabEl = document.querySelector('.tab[data-tab="' + id + '"]');
+        if (tabEl) tabEl.parentNode.removeChild(tabEl);
+        var pane = document.getElementById("pane_" + id);
+        if (pane) pane.parentNode.removeChild(pane);
+
+        tabs.splice(idx, 1);
+
+        // If the active tab was closed, switch to the previous one
+        if (activeTab === id) {
+            var newActive = tabs[Math.max(0, idx - 1)].id;
+            switchTab(newActive);
+        }
+    }
+
+    function getTab(id) {
+        for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) return tabs[i];
+        return null;
+    }
+
+    // ========== Navigation ==========
+    function navigateTo(path) {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+
+        // Check whether the path exists
+        var folder;
+        try {
+            if (path === "" || path === null) return;
+            folder = fso.GetFolder(path);
+        } catch (e) {
+            alert("Cannot open path: " + path);
+            return;
+        }
+
+        // Update history
+        tab.history = tab.history.slice(0, tab.histIndex + 1);
+        tab.history.push(path);
+        tab.histIndex = tab.history.length - 1;
+        tab.title = folder.Name || path;
+
+        // Update tab title
+        var tabEl = document.querySelector('.tab[data-tab="' + activeTab + '"] .tab-title');
+        if (tabEl) tabEl.textContent = tab.title;
+
+        // Update path field
+        document.getElementById("pathInput").value = path;
+
+        // Render the file list
+        renderFileList(path);
+    }
+
+    function goUp() {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+        var current = tab.history[tab.histIndex];
+        var parent = fso.GetParentFolderName(current);
+        if (parent && parent !== current) {
+            navigateTo(parent);
+        }
+    }
+
+    function goBack() {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+        if (tab.histIndex > 0) {
+            tab.histIndex--;
+            var path = tab.history[tab.histIndex];
+            document.getElementById("pathInput").value = path;
+            renderFileList(path);
+        }
+    }
+
+    function goForward() {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+        if (tab.histIndex < tab.history.length - 1) {
+            tab.histIndex++;
+            var path = tab.history[tab.histIndex];
+            document.getElementById("pathInput").value = path;
+            renderFileList(path);
+        }
+    }
+
+    function refreshCurrent() {
+        var tab = getTab(activeTab);
+        if (tab) renderFileList(tab.history[tab.histIndex]);
+    }
+
+    function goToPath() {
+        var path = document.getElementById("pathInput").value.trim();
+        if (path) navigateTo(path);
+    }
+
+    // ========== Render file list ==========
+    function renderFileList(folderPath) {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+        var pane = document.getElementById("pane_" + activeTab);
+        var tbody = pane.querySelector("tbody");
+        tbody.innerHTML = "";
+
+        try {
+            var folder = fso.GetFolder(folderPath);
+            var items = [];
+
+            // Folders first
+            var folders = new Enumerator(folder.SubFolders);
+            for (; !folders.atEnd(); folders.moveNext()) {
+                var f = folders.item();
+                items.push({
+                    name: f.Name,
+                    path: f.Path,
+                    isFolder: true,
+                    size: "",
+                    type: "Folder",
+                    date: formatDate(f.DateLastModified)
+                });
+            }
+
+            // Then files
+            var files = new Enumerator(folder.Files);
+            for (; !files.atEnd(); files.moveNext()) {
+                var f = files.item();
+                items.push({
+                    name: f.Name,
+                    path: f.Path,
+                    isFolder: false,
+                    size: formatSize(f.Size),
+                    type: getFileType(f.Name),
+                    date: formatDate(f.DateLastModified)
+                });
+            }
+
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">This folder is empty</td></tr>';
+                return;
+            }
+
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+                var tr = document.createElement("tr");
+                tr.setAttribute("data-path", item.path);
+                tr.setAttribute("data-folder", item.isFolder ? "1" : "0");
+
+                var icon = item.isFolder ? "📁" : "📄";
+                var cls = item.isFolder ? "folder" : "file";
+
+                tr.innerHTML =
+                    '<td><span class="icon ' + cls + '">' + icon + '</span>' + escapeHtml(item.name) + '</td>' +
+                    '<td>' + item.type + '</td>' +
+                    '<td class="size">' + item.size + '</td>' +
+                    '<td>' + item.date + '</td>';
+
+                tr.ondblclick = (function (p, isFolder) {
+                    return function () { openItem(p, isFolder); };
+                })(item.path, item.isFolder);
+
+                tr.onclick = function () {
+                    var selected = tbody.querySelectorAll("tr.selected");
+                    for (var k = 0; k < selected.length; k++) selected[k].className = "";
+                    this.className = "selected";
+                };
+
+                tbody.appendChild(tr);
+            }
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Read error: ' + escapeHtml(e.message) + '</td></tr>';
+        }
+    }
+
+    // ========== Open item ==========
+    function openItem(path, isFolder) {
+        if (isFolder) {
+            // Folder — navigate into it
+            navigateTo(path);
+        } else {
+            // File — try to open with the default program
+            openFileWithSystem(path);
+        }
+    }
+
+    function openFileWithSystem(filePath) {
+        try {
+            // Method 1: open directly via ShellExecute
+            shell.Run('"' + filePath + '"', 1, false);
+        } catch (e) {
+            try {
+                // Method 2: if it's an archive, try to view it (see below)
+                if (/\.(zip|tar|gz|bz2|xz|7z|rar)$/i.test(filePath)) {
+                    viewArchive(filePath);
+                } else {
+                    alert("Cannot open file: " + filePath);
+                }
+            } catch (e2) {
+                alert("Cannot open: " + e2.message);
+            }
+        }
+    }
+
+    // ========== Archive viewing (via Windows built-in tar) ==========
+    function viewArchive(archivePath) {
+        // Create a temp folder for extraction
+        var tempDir = shell.ExpandEnvironmentStrings("%TEMP%") + "\\hta_arc_" + new Date().getTime();
+        fso.CreateFolder(tempDir);
+
+        try {
+            // Use tar from Windows 10+ to extract into the temp folder
+            var cmd = 'cmd /c cd /d "' + tempDir + '" && tar -xf "' + archivePath + '"';
+            var exec = shell.Exec(cmd);
+            // Wait for extraction to finish (simple polling)
+            var waitCount = 0;
+            while (exec.Status === 0 && waitCount < 50) {
+                waitCount++;
+                // WScript.Sleep is not available in HTA directly, so spin an empty loop
+                var dummy = 0;
+                for (var d = 0; d < 1000000; d++) { dummy++; }
+            }
+
+            // Open the extracted folder in a new tab
+            createTab(tempDir);
+            // Notify the user
+            alert("Archive extracted to a temp folder:\n" + tempDir + "\n\nNote: temp files may be cleaned up after a reboot.");
+        } catch (e) {
+            alert("Failed to view archive: " + e.message);
+        }
+    }
+
+    // ========== Helpers ==========
+    function formatSize(bytes) {
+        if (bytes === 0) return "0 B";
+        var units = ["B", "KB", "MB", "GB", "TB"];
+        var i = Math.floor(Math.log(bytes) / Math.log(1024));
+        i = Math.min(i, units.length - 1);
+        return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + " " + units[i];
+    }
+
+    function formatDate(d) {
+        try {
+            var y = d.getFullYear();
+            var m = ("0" + (d.getMonth() + 1)).slice(-2);
+            var day = ("0" + d.getDate()).slice(-2);
+            var h = ("0" + d.getHours()).slice(-2);
+            var min = ("0" + d.getMinutes()).slice(-2);
+            return y + "-" + m + "-" + day + " " + h + ":" + min;
+        } catch (e) {
+            return "";
+        }
+    }
+
+    function getFileType(name) {
+        var ext = name.split(".").pop().toLowerCase();
+        var map = {
+            exe: "Application", com: "Application", bat: "Batch file", cmd: "Command script",
+            txt: "Text document", log: "Log", ini: "Configuration", cfg: "Configuration", json: "JSON",
+            html: "Web page", htm: "Web page", hta: "HTA application",
+            jpg: "Image", jpeg: "Image", png: "Image", gif: "Image", bmp: "Image", svg: "Image",
+            mp3: "Audio", wav: "Audio", flac: "Audio", ogg: "Audio",
+            mp4: "Video", mkv: "Video", avi: "Video", mov: "Video",
+            zip: "Archive", rar: "Archive", "7z": "Archive", tar: "Archive", gz: "Archive",
+            doc: "Word document", docx: "Word document", xls: "Excel spreadsheet", xlsx: "Excel spreadsheet",
+            ppt: "Presentation", pptx: "Presentation", pdf: "PDF document"
+        };
+        return map[ext] || (ext ? ext.toUpperCase() + " file" : "File");
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // Init on page load
+    window.onload = init;
+</script>
+</head>
+<body>
+    <!-- Tab bar -->
+    <div id="tabBar">
+        <div id="newTabBtn" onclick="createTab(shell.SpecialFolders('Desktop'))">+</div>
+    </div>
+
+    <!-- Toolbar -->
+    <div id="toolbar">
+        <button onclick="goBack()" title="Back">←</button>
+        <button onclick="goForward()" title="Forward">→</button>
+        <button onclick="goUp()" title="Up one level">↑</button>
+        <button onclick="refreshCurrent()" title="Refresh">↻</button>
+        <input type="text" id="pathInput" placeholder="Type a path and press Enter..." onkeydown="if(event.keyCode===13)goToPath()" />
+        <button id="goBtn" onclick="goToPath()">Go</button>
+    </div>
+
+    <!-- Content area -->
+    <div id="contentArea"></div>
+</body>
+</html>
