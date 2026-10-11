@@ -1,60 +1,60 @@
-# HTA File Manager
+# HTA Файловый менеджер
 
-A lightweight file manager for Windows that **requires no installation**. One `.hta` file — download it, double-click, done.
+Лёгкий файловый менеджер для Windows, который **не требует установки**. Один `.hta` файл — скачал, дважды кликнул, работает.
 
-An alternative to Windows Explorer with tabs, fast folder browsing, and launching programs straight from the list.
+Альтернатива проводнику с вкладками, быстрым просмотром папок и запуском программ прямо из списка.
 
-## ✨ Features
+## ✨ Возможности
 
-- **Browser-style tabs** — open multiple folders at once, each keeps its own history
-- **Navigation** — back, forward, up one level, refresh, jump to a typed path
-- **File list** — name, type, size, modified date. Folders first, files below
-- **Launch programs** — double-click an `.exe`, `.bat`, or document to open it with the default app
-- **Archive viewing** — double-click a `.zip`, `.tar`, `.gz` to extract it to a temp folder and open it
-- **Hotkeys**:
-  - `ESC` — close
-  - `Backspace` — go up one level
-  - `F5` — refresh
+- **Вкладки как в браузере** — открывай несколько папок одновременно, каждая помнит свою историю
+- **Навигация** — назад, вперёд, на уровень вверх, обновить, переход по введённому пути
+- **Список файлов** — имя, тип, размер, дата изменения. Папки сверху, файлы снизу
+- **Запуск программ** — двойной клик по `.exe`, `.bat` или документу открывает его программой по умолчанию
+- **Просмотр архивов** — двойной клик по `.zip`, `.tar`, `.gz` распаковывает во временную папку и открывает её
+- **Горячие клавиши**:
+  - `ESC` — закрыть
+  - `Backspace` — на уровень вверх
+  - `F5` — обновить
 
-## 🚀 How to run
+## 🚀 Как запустить
 
-1. Download `file-manager.hta` from this repository
-2. Double-click it
-3. Done — no installation needed
+1. Скачай файл `file-manager.hta` из этого репозитория
+2. Дважды кликни по нему
+3. Готово — ничего устанавливать не нужно
 
-**Requirements:** Windows 10 or 11. Everything else is already built into the system.
+**Требования:** Windows 10 или 11. Всё остальное уже встроено в систему.
 
-## 📁 Usage
+## 📁 Использование
 
-- **Double-click a folder** — enter it
-- **Double-click a file** — open it with the default program
-- **Double-click an archive** — extract to a temp folder and open it
-- **`+` button** — new tab
-- **`×` on a tab** — close the tab
-- **Path field** — type a path, press `Enter`
+- **Двойной клик по папке** — войти внутрь
+- **Двойной клик по файлу** — открыть программой по умолчанию
+- **Двойной клик по архиву** — распаковать во временную папку и открыть
+- **Кнопка `+`** — новая вкладка
+- **`×` на вкладке** — закрыть вкладку
+- **Поле пути** — введи путь, нажми `Enter`
 
-## ⚠️ Known limitations
+## ⚠️ Известные ограничения
 
-- Archive viewing means **extracting to `%TEMP%`**, not browsing inside the archive like WinRAR does. Temp files may be cleaned up after a reboot.
-- Windows only (HTA is a Microsoft technology).
-- No copy/paste/delete yet.
+- Просмотр архивов — это **распаковка во временную папку** `%TEMP%`, а не листание внутри архива как в WinRAR. После перезагрузки временные файлы могут быть очищены системой.
+- Работает только на Windows (HTA — технология Microsoft).
+- Нет копирования/вставки/удаления файлов (пока).
 
-## 🛠️ Tech stack
+## 🛠️ Технологии
 
 - HTA (HTML Application)
 - JScript + ActiveX (`Scripting.FileSystemObject`, `WScript.Shell`)
-- Windows built-in `tar` for archive extraction
+- Встроенный в Windows `tar` для распаковки архивов
 
-No Node.js, no Python, no compilers, no installers.
+Никаких Node.js, Python, компиляторов и установщиков.
 
-## 🗺️ Roadmap
+## 🗺️ Планы
 
-- [ ] Right-click context menu (copy, paste, delete, rename)
-- [ ] Search in current folder
-- [ ] Sort by columns
-- [ ] Favorite folders
-- [ ] Dark theme
+- [ ] Контекстное меню по правой кнопке (копировать, вставить, удалить, переименовать)
+- [ ] Поиск по текущей папке
+- [ ] Сортировка по столбцам
+- [ ] Избранные папки
+- [ ] Тёмная тема
 
-## 📜 License
+## 📜 Лицензия
 
-MIT — do whatever you want, just keep the author credit. See [LICENSE](LICENSE).
+MIT — делай что хочешь, только не удаляй упоминание автора. См. [LICENSE](LICENSE).
