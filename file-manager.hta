@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>HTA Файловый менеджер</title>
+<hta:application
+    id="oHTA"
+    applicationname="МойФайловыйМенеджер"
+    border="thin"
+    caption="yes"
+    maximizebutton="yes"
+    minimizebutton="yes"
+    showintaskbar="yes"
+    singleinstance="no"
+    scroll="no"
+    contextmenu="no"
+    selection="no"
+    sysmenu="yes"
+    version="1.0" />
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; background: #f5f5f5; overflow: hidden; }
+
+    /* Панель вкладок */
+    #tabBar {
+        display: flex; background: #e0e0e0; padding: 4px 4px 0 4px; gap: 2px;
+        border-bottom: 1px solid #aaa; overflow-x: auto; white-space: nowrap;
+    }
+    .tab {
+        padding: 6px 14px; background: #d0d0d0; border: 1px solid #aaa; border-bottom: none;
+        border-radius: 6px 6px 0 0; cursor: pointer; user-select: none;
+        display: flex; align-items: center; gap: 8px; font-size: 12px;
+    }
+    .tab.active { background: #fff; font-weight: bold; position: relative; top: 1px; }
+    .tab .close {
+        font-size: 14px; line-height: 1; padding: 1px 4px; border-radius: 3px;
+        cursor: pointer; color: #666;
+    }
+    .tab .close:hover { background: #c00; color: #fff; }
+    #newTabBtn {
+        padding: 6px 12px; background: #d0d0d0; border: 1px solid #aaa; border-bottom: none;
+        border-radius: 6px 6px 0 0; cursor: pointer; font-size: 16px; line-height: 1;
+    }
+    #newTabBtn:hover { background: #c0c0c0; }
+
+    /* Панель инструментов */
+    #toolbar {
+        display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+        background: #fff; border-bottom: 1px solid #ccc;
+    }
+    #toolbar button {
+        padding: 5px 12px; border: 1px solid #aaa; background: #f0f0f0;
+        border-radius: 4px; cursor: pointer; font-size: 12px;
+    }
+    #toolbar button:hover { background: #e0e0e0; }
+    #pathInput {
+        flex: 1; padding: 5px 8px; border: 1px solid #aaa; border-radius: 4px;
+        font-size: 12px; font-family: Consolas, monospace;
+    }
+    #goBtn { padding: 5px 10px; }
+
+    /* Область содержимого */
+    #contentArea { position: absolute; top: 98px; left: 0; right: 0; bottom: 0; overflow: auto; background: #fff; }
+    .pane { display: none; padding: 0; }
+    .pane.active { display: block; }
+
+    /* Список файлов */
+    table.fileList { width: 100%; border-collapse: collapse; }
+    table.fileList thead th {
+        position: sticky; top: 0; background: #f0f0f0; border-bottom: 1px solid #ccc;
+        padding: 6px 8px; text-align: left; font-size: 12px; cursor: pointer; user-select: none;
+    }
+    table.fileList tbody tr { cursor: pointer; }
+    table.fileList tbody tr:hover { background: #e8f0fe; }
+    table.fileList tbody tr.selected { background: #cce5ff; }
+    table.fileList td { padding: 4px 8px; border-bottom: 1px solid #eee; font-size: 12px; }
+    .icon { margin-right: 6px; }
+    .folder { color: #e8a000; }
+    .file { color: #555; }
+    .size { text-align: right; color: #888; font-family: Consolas, monospace; font-size: 11px; }
+    .empty-msg { padding: 20px; color: #999; font-style: italic; }
+</style>
+<script type="text/javascript">
+    // ========== Глобальное состояние ==========
+    var fso, shell;
+    var tabs = [];          // состояние каждой вкладки: { history: [], histIndex: 0, title: '', paneId: '' }
+    var activeTab = 0;
+    var tabCounter = 0;
+
+    // ========== Инициализация ==========
+    function init() {
+        fso = new ActiveXObject("Scripting.FileSystemObject");
+        shell = new ActiveXObject("WScript.Shell");
+
+        // Создаём первую вкладку, открываем рабочий стол пользователя
+        var desktop = shell.SpecialFolders("Desktop");
+        createTab(desktop);
+
+        // Глобальные горячие клавиши
+        document.onkeydown = function (e) {
+            e = e || window.event;
+            if (e.keyCode === 27) { // ESC — закрыть
+                window.close();
+            }
+            if (e.keyCode === 8) { // Backspace — на уровень вверх
+                e.returnValue = false;
+                goUp();
+            }
+            if (e.keyCode === 116) { // F5 — обновить
+                e.returnValue = false;
+                refreshCurrent();
+            }
+        };
+    }
+
+    // ========== Управление вкладками ==========
+    function createTab(startPath) {
+        var id = ++tabCounter;
+        var paneId = "pane_" + id;
+
+        // Создаём кнопку вкладки
+        var tabEl = document.createElement("div");
+        tabEl.className = "tab";
+        tabEl.setAttribute("data-tab", id);
+        tabEl.innerHTML = '<span class="tab-title">Новая вкладка</span><span class="close" onclick="closeTab(event,' + id + ')">×</span>';
+        tabEl.onclick = function (ev) { if (!ev.target.classList.contains('close')) switchTab(id); };
+        document.getElementById("tabBar").insertBefore(tabEl, document.getElementById("newTabBtn"));
+
+        // Создаём панель содержимого
+        var pane = document.createElement("div");
+        pane.className = "pane";
+        pane.id = paneId;
+        pane.innerHTML = '<table class="fileList"><thead><tr>' +
+            '<th style="width:55%">Имя</th>' +
+            '<th style="width:15%">Тип</th>' +
+            '<th style="width:15%">Размер</th>' +
+            '<th style="width:15%">Дата изменения</th>' +
+            '</tr></thead><tbody></tbody></table>';
+        document.getElementById("contentArea").appendChild(pane);
+
+        // Сохраняем состояние
+        tabs.push({
+            id: id,
+            history: [startPath],
+            histIndex: 0,
+            title: "Новая вкладка"
+        });
+
+        // Переключаемся на новую вкладку
+        switchTab(id);
+        navigateTo(startPath);
+    }
+
+    function switchTab(id) {
+        activeTab = id;
+        // Обновляем стили вкладок
+        var allTabs = document.querySelectorAll(".tab");
+        for (var i = 0; i < allTabs.length; i++) {
+            var tid = parseInt(allTabs[i].getAttribute("data-tab"));
+            allTabs[i].className = (tid === id) ? "tab active" : "tab";
+        }
+        // Обновляем отображение панелей
+        var allPanes = document.querySelectorAll(".pane");
+        for (var j = 0; j < allPanes.length; j++) {
+            allPanes[j].className = "pane";
+        }
+        var pane = document.getElementById("pane_" + id);
+        if (pane) pane.className = "pane active";
+
+        // Обновляем строку пути
+        var tab = getTab(id);
+        if (tab) {
+            document.getElementById("pathInput").value = tab.history[tab.histIndex];
+        }
+    }
+
+    function closeTab(ev, id) {
+        if (ev) ev.stopPropagation();
+        if (tabs.length <= 1) return; // минимум одна вкладка
+
+        var idx = -1;
+        for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) { idx = i; break; }
+        if (idx === -1) return;
+
+        // Удаляем DOM
+        var tabEl = document.querySelector('.tab[data-tab="' + id + '"]');
+        if (tabEl) tabEl.parentNode.removeChild(tabEl);
+        var pane = document.getElementById("pane_" + id);
+        if (pane) pane.parentNode.removeChild(pane);
+
+        tabs.splice(idx, 1);
+
+        // Если закрыли текущую — переключаемся на предыдущую
+        if (activeTab === id) {
+            var newActive = tabs[Math.max(0, idx - 1)].id;
+            switchTab(newActive);
+        }
+    }
+
+    function getTab(id) {
+        for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) return tabs[i];
+        return null;
+    }
+
+    // ========== Навигация ==========
+    function navigateTo(path) {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+
+        // Проверяем, существует ли путь
+        var folder;
+        try {
+            if (path === "" || path === null) return;
+            folder = fso.GetFolder(path);
+        } catch (e) {
+            alert("Не удаётся открыть путь: " + path);
+            return;
+        }
+
+        // Обновляем историю
+        tab.history = tab.history.slice(0, tab.histIndex + 1);
+        tab.history.push(path);
+        tab.histIndex = tab.history.length - 1;
+        tab.title = folder.Name || path;
+
+        // Обновляем заголовок вкладки
+        var tabEl = document.querySelector('.tab[data-tab="' + activeTab + '"] .tab-title');
+        if (tabEl) tabEl.textContent = tab.title;
+
+        // Обновляем строку пути
+        document.getElementById("pathInput").value = path;
+
+        // Отрисовываем список файлов
+        renderFileList(path);
+    }
+
+    function goUp() {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+        var current = tab.history[tab.histIndex];
+        var parent = fso.GetParentFolderName(current);
+        if (parent && parent !== current) {
+            navigateTo(parent);
+        }
+    }
+
+    function goBack() {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+        if (tab.histIndex > 0) {
+            tab.histIndex--;
+            var path = tab.history[tab.histIndex];
+            document.getElementById("pathInput").value = path;
+            renderFileList(path);
+        }
+    }
+
+    function goForward() {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+        if (tab.histIndex < tab.history.length - 1) {
+            tab.histIndex++;
+            var path = tab.history[tab.histIndex];
+            document.getElementById("pathInput").value = path;
+            renderFileList(path);
+        }
+    }
+
+    function refreshCurrent() {
+        var tab = getTab(activeTab);
+        if (tab) renderFileList(tab.history[tab.histIndex]);
+    }
+
+    function goToPath() {
+        var path = document.getElementById("pathInput").value.trim();
+        if (path) navigateTo(path);
+    }
+
+    // ========== Отрисовка списка файлов ==========
+    function renderFileList(folderPath) {
+        var tab = getTab(activeTab);
+        if (!tab) return;
+        var pane = document.getElementById("pane_" + activeTab);
+        var tbody = pane.querySelector("tbody");
+        tbody.innerHTML = "";
+
+        try {
+            var folder = fso.GetFolder(folderPath);
+            var items = [];
+
+            // Сначала собираем папки
+            var folders = new Enumerator(folder.SubFolders);
+            for (; !folders.atEnd(); folders.moveNext()) {
+                var f = folders.item();
+                items.push({
+                    name: f.Name,
+                    path: f.Path,
+                    isFolder: true,
+                    size: "",
+                    type: "Папка",
+                    date: formatDate(f.DateLastModified)
+                });
+            }
+
+            // Затем собираем файлы
+            var files = new Enumerator(folder.Files);
+            for (; !files.atEnd(); files.moveNext()) {
+                var f = files.item();
+                items.push({
+                    name: f.Name,
+                    path: f.Path,
+                    isFolder: false,
+                    size: formatSize(f.Size),
+                    type: getFileType(f.Name),
+                    date: formatDate(f.DateLastModified)
+                });
+            }
+
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Эта папка пуста</td></tr>';
+                return;
+            }
+
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+                var tr = document.createElement("tr");
+                tr.setAttribute("data-path", item.path);
+                tr.setAttribute("data-folder", item.isFolder ? "1" : "0");
+
+                var icon = item.isFolder ? "📁" : "📄";
+                var cls = item.isFolder ? "folder" : "file";
+
+                tr.innerHTML =
+                    '<td><span class="icon ' + cls + '">' + icon + '</span>' + escapeHtml(item.name) + '</td>' +
+                    '<td>' + item.type + '</td>' +
+                    '<td class="size">' + item.size + '</td>' +
+                    '<td>' + item.date + '</td>';
+
+                tr.ondblclick = (function (p, isFolder) {
+                    return function () { openItem(p, isFolder); };
+                })(item.path, item.isFolder);
+
+                tr.onclick = function () {
+                    var selected = tbody.querySelectorAll("tr.selected");
+                    for (var k = 0; k < selected.length; k++) selected[k].className = "";
+                    this.className = "selected";
+                };
+
+                tbody.appendChild(tr);
+            }
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Ошибка чтения: ' + escapeHtml(e.message) + '</td></tr>';
+        }
+    }
+
+    // ========== Открытие элемента ==========
+    function openItem(path, isFolder) {
+        if (isFolder) {
+            // Папка — переходим внутрь
+            navigateTo(path);
+        } else {
+            // Файл — пытаемся открыть программой по умолчанию
+            openFileWithSystem(path);
+        }
+    }
+
+    function openFileWithSystem(filePath) {
+        try {
+            // Способ 1: открыть напрямую через ShellExecute
+            shell.Run('"' + filePath + '"', 1, false);
+        } catch (e) {
+            try {
+                // Способ 2: если это архив — пытаемся посмотреть (см. ниже)
+                if (/\.(zip|tar|gz|bz2|xz|7z|rar)$/i.test(filePath)) {
+                    viewArchive(filePath);
+                } else {
+                    alert("Не удаётся открыть файл: " + filePath);
+                }
+            } catch (e2) {
+                alert("Не удаётся открыть: " + e2.message);
+            }
+        }
+    }
+
+    // ========== Просмотр архивов (через встроенный в Windows tar) ==========
+    function viewArchive(archivePath) {
+        // Создаём временную папку для распаковки
+        var tempDir = shell.ExpandEnvironmentStrings("%TEMP%") + "\\hta_arc_" + new Date().getTime();
+        fso.CreateFolder(tempDir);
+
+        try {
+            // Используем tar из Windows 10+ для распаковки во временную папку
+            var cmd = 'cmd /c cd /d "' + tempDir + '" && tar -xf "' + archivePath + '"';
+            var exec = shell.Exec(cmd);
+            // Ждём завершения распаковки (простой опрос)
+            var waitCount = 0;
+            while (exec.Status === 0 && waitCount < 50) {
+                waitCount++;
+                // WScript.Sleep в HTA напрямую недоступен, поэтому крутим пустой цикл
+                var dummy = 0;
+                for (var d = 0; d < 1000000; d++) { dummy++; }
+            }
+
+            // Открываем распакованную папку в новой вкладке
+            createTab(tempDir);
+            // Сообщаем пользователю
+            alert("Архив распакован во временную папку:\n" + tempDir + "\n\nВнимание: временная папка может быть очищена после перезагрузки системы.");
+        } catch (e) {
+            alert("Не удалось просмотреть архив: " + e.message);
+        }
+    }
+
+    // ========== Вспомогательные функции ==========
+    function formatSize(bytes) {
+        if (bytes === 0) return "0 Б";
+        var units = ["Б", "КБ", "МБ", "ГБ", "ТБ"];
+        var i = Math.floor(Math.log(bytes) / Math.log(1024));
+        i = Math.min(i, units.length - 1);
+        return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + " " + units[i];
+    }
+
+    function formatDate(d) {
+        try {
+            var y = d.getFullYear();
+            var m = ("0" + (d.getMonth() + 1)).slice(-2);
+            var day = ("0" + d.getDate()).slice(-2);
+            var h = ("0" + d.getHours()).slice(-2);
+            var min = ("0" + d.getMinutes()).slice(-2);
+            return y + "-" + m + "-" + day + " " + h + ":" + min;
+        } catch (e) {
+            return "";
+        }
+    }
+
+    function getFileType(name) {
+        var ext = name.split(".").pop().toLowerCase();
+        var map = {
+            exe: "Приложение", com: "Приложение", bat: "Пакетный файл", cmd: "Командный скрипт",
+            txt: "Текстовый документ", log: "Журнал", ini: "Конфигурация", cfg: "Конфигурация", json: "JSON",
+            html: "Веб-страница", htm: "Веб-страница", hta: "HTA-приложение",
+            jpg: "Изображение", jpeg: "Изображение", png: "Изображение", gif: "Изображение", bmp: "Изображение", svg: "Изображение",
+            mp3: "Аудио", wav: "Аудио", flac: "Аудио", ogg: "Аудио",
+            mp4: "Видео", mkv: "Видео", avi: "Видео", mov: "Видео",
+            zip: "Архив", rar: "Архив", "7z": "Архив", tar: "Архив", gz: "Архив",
+            doc: "Документ Word", docx: "Документ Word", xls: "Таблица Excel", xlsx: "Таблица Excel",
+            ppt: "Презентация", pptx: "Презентация", pdf: "Документ PDF"
+        };
+        return map[ext] || (ext ? ext.toUpperCase() + " файл" : "Файл");
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // После загрузки страницы — инициализация
+    window.onload = init;
+</script>
+</head>
+<body>
+    <!-- Панель вкладок -->
+    <div id="tabBar">
+        <div id="newTabBtn" onclick="createTab(shell.SpecialFolders('Desktop'))">+</div>
+    </div>
+
+    <!-- Панель инструментов -->
+    <div id="toolbar">
+        <button onclick="goBack()" title="Назад">←</button>
+        <button onclick="goForward()" title="Вперёд">→</button>
+        <button onclick="goUp()" title="На уровень вверх">↑</button>
+        <button onclick="refreshCurrent()" title="Обновить">↻</button>
+        <input type="text" id="pathInput" placeholder="Введите путь и нажмите Enter..." onkeydown="if(event.keyCode===13)goToPath()" />
+        <button id="goBtn" onclick="goToPath()">Перейти</button>
+    </div>
+
+    <!-- Область содержимого -->
+    <div id="contentArea"></div>
+</body>
+</html>
