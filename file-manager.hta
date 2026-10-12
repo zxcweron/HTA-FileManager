@@ -1,443 +1,318 @@
-<!DOCTYPE html>
-<html>
+﻿<!DOCTYPE html>
+<html lang="ru">
 <head>
-<meta charset="utf-8" />
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<title>HTA File Manager</title>
-<hta:application
-    id="oHTA"
-    applicationname="MyFileManager"
-    border="thin"
-    caption="yes"
-    maximizebutton="yes"
-    minimizebutton="yes"
-    showintaskbar="yes"
-    singleinstance="no"
-    scroll="no"
-    contextmenu="no"
-    selection="no"
-    sysmenu="yes"
-    version="1.0" />
+<meta charset="utf-8">
+<meta http-equiv="x-ua-compatible" content="ie=edge">
+<title>HTA Файловый менеджер</title>
+<HTA:APPLICATION ID="app" APPLICATIONNAME="HTA-FileManager" BORDER="thick" SCROLL="no" CONTEXTMENU="no" SINGLEINSTANCE="no" MAXIMIZEBUTTON="yes" MINIMIZEBUTTON="yes"/>
 <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; background: #f5f5f5; overflow: hidden; }
-
-    /* Tab bar */
-    #tabBar {
-        display: flex; background: #e0e0e0; padding: 4px 4px 0 4px; gap: 2px;
-        border-bottom: 1px solid #aaa; overflow-x: auto; white-space: nowrap;
-    }
-    .tab {
-        padding: 6px 14px; background: #d0d0d0; border: 1px solid #aaa; border-bottom: none;
-        border-radius: 6px 6px 0 0; cursor: pointer; user-select: none;
-        display: flex; align-items: center; gap: 8px; font-size: 12px;
-    }
-    .tab.active { background: #fff; font-weight: bold; position: relative; top: 1px; }
-    .tab .close {
-        font-size: 14px; line-height: 1; padding: 1px 4px; border-radius: 3px;
-        cursor: pointer; color: #666;
-    }
-    .tab .close:hover { background: #c00; color: #fff; }
-    #newTabBtn {
-        padding: 6px 12px; background: #d0d0d0; border: 1px solid #aaa; border-bottom: none;
-        border-radius: 6px 6px 0 0; cursor: pointer; font-size: 16px; line-height: 1;
-    }
-    #newTabBtn:hover { background: #c0c0c0; }
-
-    /* Toolbar */
-    #toolbar {
-        display: flex; align-items: center; gap: 6px; padding: 6px 8px;
-        background: #fff; border-bottom: 1px solid #ccc;
-    }
-    #toolbar button {
-        padding: 5px 12px; border: 1px solid #aaa; background: #f0f0f0;
-        border-radius: 4px; cursor: pointer; font-size: 12px;
-    }
-    #toolbar button:hover { background: #e0e0e0; }
-    #pathInput {
-        flex: 1; padding: 5px 8px; border: 1px solid #aaa; border-radius: 4px;
-        font-size: 12px; font-family: Consolas, monospace;
-    }
-    #goBtn { padding: 5px 10px; }
-
-    /* Content area */
-    #contentArea { position: absolute; top: 98px; left: 0; right: 0; bottom: 0; overflow: auto; background: #fff; }
-    .pane { display: none; padding: 0; }
-    .pane.active { display: block; }
-
-    /* File list */
-    table.fileList { width: 100%; border-collapse: collapse; }
-    table.fileList thead th {
-        position: sticky; top: 0; background: #f0f0f0; border-bottom: 1px solid #ccc;
-        padding: 6px 8px; text-align: left; font-size: 12px; cursor: pointer; user-select: none;
-    }
-    table.fileList tbody tr { cursor: pointer; }
-    table.fileList tbody tr:hover { background: #e8f0fe; }
-    table.fileList tbody tr.selected { background: #cce5ff; }
-    table.fileList td { padding: 4px 8px; border-bottom: 1px solid #eee; font-size: 12px; }
-    .icon { margin-right: 6px; }
-    .folder { color: #e8a000; }
-    .file { color: #555; }
-    .size { text-align: right; color: #888; font-family: Consolas, monospace; font-size: 11px; }
-    .empty-msg { padding: 20px; color: #999; font-style: italic; }
+html,body{height:100%;margin:0}
+body{font:13px "Segoe UI",Tahoma,sans-serif;background:#f4f5f7;color:#1c1f23;overflow:hidden;-ms-user-select:none;user-select:none}
+#app{display:-ms-flexbox;display:flex;-ms-flex-direction:column;flex-direction:column;height:100%}
+#tabs{display:-ms-flexbox;display:flex;background:#dfe3e8;padding:4px 4px 0;min-height:28px}
+.tab{padding:5px 8px 5px 12px;margin-right:2px;background:#cfd5dc;border-radius:5px 5px 0 0;max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.tab.act{background:#fff}.tab b{margin-left:8px;color:#777;font-weight:normal}.tab b:hover{color:#d33}
+.tab.plus{padding:5px 11px;font-weight:bold}
+#bar{display:-ms-flexbox;display:flex;padding:6px;background:#fff;border-bottom:1px solid #d5d9de}
+#bar button{width:30px;margin-right:3px}
+button{font:inherit;background:#eef0f3;border:1px solid #c6ccd3;border-radius:3px;cursor:pointer;color:inherit}
+button:hover{background:#e0e5ea}
+#path{-ms-flex:1;flex:1;margin:0 6px;padding:3px 6px;font:inherit;border:1px solid #c6ccd3;background:#fff;color:inherit;min-width:80px}
+#q{width:160px;padding:3px 6px;font:inherit;border:1px solid #c6ccd3;background:#fff;color:inherit;margin-right:3px}
+#fav.on{color:#e0a100}
+#main{display:-ms-flexbox;display:flex;-ms-flex:1;flex:1;min-height:0}
+#side{width:170px;background:#eceff2;border-right:1px solid #d5d9de;overflow:auto;padding:6px 0}
+.sh{padding:8px 12px 3px;color:#6a727b;font-size:12px}
+.si{padding:4px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.si:hover{background:#dbe0e6}.si b{float:right;color:#888;font-weight:normal}.si b:hover{color:#d33}
+#files{-ms-flex:1;flex:1;display:-ms-flexbox;display:flex;-ms-flex-direction:column;flex-direction:column;min-width:0;background:#fff}
+#head{padding-right:17px;background:#f4f5f7;border-bottom:1px solid #d5d9de}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+th{text-align:left;font-weight:normal;padding:4px 8px;color:#555;cursor:default}
+th:hover{background:#e6e9ed}
+td{padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#list{-ms-flex:1;flex:1;overflow-y:scroll;overflow-x:hidden}
+tr.sel td{background:#cfe2ff}tr.cut td{opacity:.5}
+.empty{padding:30px;text-align:center;color:#888}
+#status{display:-ms-flexbox;display:flex;padding:4px 10px;background:#eceff2;border-top:1px solid #d5d9de;color:#555}
+#st{-ms-flex:1;flex:1}
+#menu{position:absolute;display:none;min-width:210px;background:#fff;border:1px solid #b9c0c8;box-shadow:2px 3px 8px rgba(0,0,0,.25);padding:3px 0;z-index:10}
+#menu div{padding:5px 18px;cursor:default}#menu div:hover{background:#cfe2ff}
+#menu div.off{color:#aaa}#menu div.off:hover{background:none}#menu hr{border:0;border-top:1px solid #dde1e5;margin:3px 0}
+#mod{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.35);display:none;z-index:20}
+#mod .box{width:340px;margin:150px auto;background:#fff;padding:16px;border-radius:4px}
+#mi{width:100%;box-sizing:border-box;margin:10px 0;padding:5px;font:inherit}
+#mod button{padding:4px 16px;margin-right:6px}
+body.dark{background:#1e2327;color:#e4e6e8}
+body.dark #tabs{background:#161a1d}body.dark .tab{background:#2a3036}body.dark .tab.act{background:#262c31}
+body.dark #bar,body.dark #files{background:#262c31}body.dark #bar{border-color:#363d44}
+body.dark button{background:#323a41;border-color:#434c54}body.dark button:hover{background:#3c464e}
+body.dark #path,body.dark #q,body.dark #mi{background:#1e2327;border-color:#434c54}
+body.dark #side,body.dark #status{background:#1e2327;border-color:#363d44}
+body.dark .si:hover{background:#2a3036}body.dark #head{background:#1e2327;border-color:#363d44}
+body.dark th{color:#aab0b6}body.dark th:hover{background:#2a3036}
+body.dark tr.sel td{background:#2d4a6e}body.dark #menu,body.dark #mod .box{background:#2a3036;border-color:#434c54}
+body.dark #menu div:hover{background:#2d4a6e}body.dark #menu hr{border-color:#434c54}
 </style>
-<script type="text/javascript">
-    // ========== Global state ==========
-    var fso, shell;
-    var tabs = [];
-    var activeTab = 0;
-    var tabCounter = 0;
-
-    // ========== Init ==========
-    function init() {
-        fso = new ActiveXObject("Scripting.FileSystemObject");
-        shell = new ActiveXObject("WScript.Shell");
-
-        var desktop = shell.SpecialFolders("Desktop");
-        createTab(desktop);
-
-        document.onkeydown = function (e) {
-            e = e || window.event;
-            if (e.keyCode === 27) { window.close(); }
-            if (e.keyCode === 8) { e.returnValue = false; goUp(); }
-            if (e.keyCode === 116) { e.returnValue = false; refreshCurrent(); }
-        };
-    }
-
-    // ========== Tab management ==========
-    function createTab(startPath) {
-        var id = ++tabCounter;
-        var paneId = "pane_" + id;
-
-        var tabEl = document.createElement("div");
-        tabEl.className = "tab";
-        tabEl.setAttribute("data-tab", id);
-        tabEl.innerHTML = '<span class="tab-title">New tab</span><span class="close" onclick="closeTab(event,' + id + ')">×</span>';
-        tabEl.onclick = function (ev) { if (!ev.target.classList.contains('close')) switchTab(id); };
-        document.getElementById("tabBar").insertBefore(tabEl, document.getElementById("newTabBtn"));
-
-        var pane = document.createElement("div");
-        pane.className = "pane";
-        pane.id = paneId;
-        pane.innerHTML = '<table class="fileList"><thead><tr>' +
-            '<th style="width:55%">Name</th>' +
-            '<th style="width:15%">Type</th>' +
-            '<th style="width:15%">Size</th>' +
-            '<th style="width:15%">Date modified</th>' +
-            '</tr></thead><tbody></tbody></table>';
-        document.getElementById("contentArea").appendChild(pane);
-
-        tabs.push({
-            id: id,
-            history: [startPath],
-            histIndex: 0,
-            title: "New tab"
-        });
-
-        switchTab(id);
-        navigateTo(startPath);
-    }
-
-    function switchTab(id) {
-        activeTab = id;
-        var allTabs = document.querySelectorAll(".tab");
-        for (var i = 0; i < allTabs.length; i++) {
-            var tid = parseInt(allTabs[i].getAttribute("data-tab"));
-            allTabs[i].className = (tid === id) ? "tab active" : "tab";
-        }
-        var allPanes = document.querySelectorAll(".pane");
-        for (var j = 0; j < allPanes.length; j++) {
-            allPanes[j].className = "pane";
-        }
-        var pane = document.getElementById("pane_" + id);
-        if (pane) pane.className = "pane active";
-
-        var tab = getTab(id);
-        if (tab) {
-            document.getElementById("pathInput").value = tab.history[tab.histIndex];
-        }
-    }
-
-    function closeTab(ev, id) {
-        if (ev) ev.stopPropagation();
-        if (tabs.length <= 1) return;
-
-        var idx = -1;
-        for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) { idx = i; break; }
-        if (idx === -1) return;
-
-        var tabEl = document.querySelector('.tab[data-tab="' + id + '"]');
-        if (tabEl) tabEl.parentNode.removeChild(tabEl);
-        var pane = document.getElementById("pane_" + id);
-        if (pane) pane.parentNode.removeChild(pane);
-
-        tabs.splice(idx, 1);
-
-        if (activeTab === id) {
-            var newActive = tabs[Math.max(0, idx - 1)].id;
-            switchTab(newActive);
-        }
-    }
-
-    function getTab(id) {
-        for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) return tabs[i];
-        return null;
-    }
-
-    // ========== Navigation ==========
-    function navigateTo(path) {
-        var tab = getTab(activeTab);
-        if (!tab) return;
-
-        var folder;
-        try {
-            if (path === "" || path === null) return;
-            folder = fso.GetFolder(path);
-        } catch (e) {
-            alert("Cannot open path: " + path);
-            return;
-        }
-
-        tab.history = tab.history.slice(0, tab.histIndex + 1);
-        tab.history.push(path);
-        tab.histIndex = tab.history.length - 1;
-        tab.title = folder.Name || path;
-
-        var tabEl = document.querySelector('.tab[data-tab="' + activeTab + '"] .tab-title');
-        if (tabEl) tabEl.textContent = tab.title;
-
-        document.getElementById("pathInput").value = path;
-
-        renderFileList(path);
-    }
-
-    function goUp() {
-        var tab = getTab(activeTab);
-        if (!tab) return;
-        var current = tab.history[tab.histIndex];
-        var parent = fso.GetParentFolderName(current);
-        if (parent && parent !== current) {
-            navigateTo(parent);
-        }
-    }
-
-    function goBack() {
-        var tab = getTab(activeTab);
-        if (!tab) return;
-        if (tab.histIndex > 0) {
-            tab.histIndex--;
-            var path = tab.history[tab.histIndex];
-            document.getElementById("pathInput").value = path;
-            renderFileList(path);
-        }
-    }
-
-    function goForward() {
-        var tab = getTab(activeTab);
-        if (!tab) return;
-        if (tab.histIndex < tab.history.length - 1) {
-            tab.histIndex++;
-            var path = tab.history[tab.histIndex];
-            document.getElementById("pathInput").value = path;
-            renderFileList(path);
-        }
-    }
-
-    function refreshCurrent() {
-        var tab = getTab(activeTab);
-        if (tab) renderFileList(tab.history[tab.histIndex]);
-    }
-
-    function goToPath() {
-        var path = trimStr(document.getElementById("pathInput").value);
-        if (path) navigateTo(path);
-    }
-
-    // ========== Render file list ==========
-    function renderFileList(folderPath) {
-        var tab = getTab(activeTab);
-        if (!tab) return;
-        var pane = document.getElementById("pane_" + activeTab);
-        var tbody = pane.querySelector("tbody");
-        tbody.innerHTML = "";
-
-        try {
-            var folder = fso.GetFolder(folderPath);
-            var items = [];
-
-            var folders = new Enumerator(folder.SubFolders);
-            for (; !folders.atEnd(); folders.moveNext()) {
-                var f = folders.item();
-                items.push({
-                    name: f.Name,
-                    path: f.Path,
-                    isFolder: true,
-                    size: "",
-                    type: "Folder",
-                    date: formatDate(f.DateLastModified)
-                });
-            }
-
-            var files = new Enumerator(folder.Files);
-            for (; !files.atEnd(); files.moveNext()) {
-                var f = files.item();
-                items.push({
-                    name: f.Name,
-                    path: f.Path,
-                    isFolder: false,
-                    size: formatSize(f.Size),
-                    type: getFileType(f.Name),
-                    date: formatDate(f.DateLastModified)
-                });
-            }
-
-            if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">This folder is empty</td></tr>';
-                return;
-            }
-
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                var tr = document.createElement("tr");
-                tr.setAttribute("data-path", item.path);
-                tr.setAttribute("data-folder", item.isFolder ? "1" : "0");
-
-                var icon = item.isFolder ? "📁" : "📄";
-                var cls = item.isFolder ? "folder" : "file";
-
-                tr.innerHTML =
-                    '<td><span class="icon ' + cls + '">' + icon + '</span>' + escapeHtml(item.name) + '</td>' +
-                    '<td>' + item.type + '</td>' +
-                    '<td class="size">' + item.size + '</td>' +
-                    '<td>' + item.date + '</td>';
-
-                tr.ondblclick = (function (p, isFolder) {
-                    return function () { openItem(p, isFolder); };
-                })(item.path, item.isFolder);
-
-                tr.onclick = function () {
-                    var selected = tbody.querySelectorAll("tr.selected");
-                    for (var k = 0; k < selected.length; k++) selected[k].className = "";
-                    this.className = "selected";
-                };
-
-                tbody.appendChild(tr);
-            }
-        } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Read error: ' + escapeHtml(e.message) + '</td></tr>';
-        }
-    }
-
-    // ========== Open item ==========
-    function openItem(path, isFolder) {
-        if (isFolder) {
-            navigateTo(path);
-        } else {
-            openFileWithSystem(path);
-        }
-    }
-
-    function openFileWithSystem(filePath) {
-        try {
-            shell.Run('"' + filePath + '"', 1, false);
-        } catch (e) {
-            try {
-                if (/\.(zip|tar|gz|bz2|xz|7z|rar)$/i.test(filePath)) {
-                    viewArchive(filePath);
-                } else {
-                    alert("Cannot open file: " + filePath);
-                }
-            } catch (e2) {
-                alert("Cannot open: " + e2.message);
-            }
-        }
-    }
-
-    // ========== Archive viewing (via Windows built-in tar) ==========
-    function viewArchive(archivePath) {
-        var tempDir = shell.ExpandEnvironmentStrings("%TEMP%") + "\\hta_arc_" + new Date().getTime();
-        fso.CreateFolder(tempDir);
-
-        try {
-            var cmd = 'cmd /c cd /d "' + tempDir + '" && tar -xf "' + archivePath + '"';
-            var exec = shell.Exec(cmd);
-            var waitCount = 0;
-            while (exec.Status === 0 && waitCount < 50) {
-                waitCount++;
-                var dummy = 0;
-                for (var d = 0; d < 1000000; d++) { dummy++; }
-            }
-
-            createTab(tempDir);
-            alert("Archive extracted to a temp folder:\n" + tempDir + "\n\nNote: temp files may be cleaned up after a reboot.");
-        } catch (e) {
-            alert("Failed to view archive: " + e.message);
-        }
-    }
-
-    // ========== Helpers ==========
-    function trimStr(s) {
-        return String(s).replace(/^\s+|\s+$/g, "");
-    }
-
-    function formatSize(bytes) {
-        if (bytes === 0) return "0 B";
-        var units = ["B", "KB", "MB", "GB", "TB"];
-        var i = Math.floor(Math.log(bytes) / Math.log(1024));
-        i = Math.min(i, units.length - 1);
-        return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + " " + units[i];
-    }
-
-    function formatDate(d) {
-        try {
-            var y = d.getFullYear();
-            var m = ("0" + (d.getMonth() + 1)).slice(-2);
-            var day = ("0" + d.getDate()).slice(-2);
-            var h = ("0" + d.getHours()).slice(-2);
-            var min = ("0" + d.getMinutes()).slice(-2);
-            return y + "-" + m + "-" + day + " " + h + ":" + min;
-        } catch (e) {
-            return "";
-        }
-    }
-
-    function getFileType(name) {
-        var ext = name.split(".").pop().toLowerCase();
-        var map = {
-            exe: "Application", com: "Application", bat: "Batch file", cmd: "Command script",
-            txt: "Text document", log: "Log", ini: "Configuration", cfg: "Configuration", json: "JSON",
-            html: "Web page", htm: "Web page", hta: "HTA application",
-            jpg: "Image", jpeg: "Image", png: "Image", gif: "Image", bmp: "Image", svg: "Image",
-            mp3: "Audio", wav: "Audio", flac: "Audio", ogg: "Audio",
-            mp4: "Video", mkv: "Video", avi: "Video", mov: "Video",
-            zip: "Archive", rar: "Archive", "7z": "Archive", tar: "Archive", gz: "Archive",
-            doc: "Word document", docx: "Word document", xls: "Excel spreadsheet", xlsx: "Excel spreadsheet",
-            ppt: "Presentation", pptx: "Presentation", pdf: "PDF document"
-        };
-        return map[ext] || (ext ? ext.toUpperCase() + " file" : "File");
-    }
-
-    function escapeHtml(str) {
-        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    }
-
-    window.onload = init;
-</script>
 </head>
 <body>
-    <div id="tabBar">
-        <div id="newTabBtn" onclick="createTab(shell.SpecialFolders('Desktop'))">+</div>
-    </div>
+<div id="app">
+ <div id="tabs"></div>
+ <div id="bar">
+  <button id="bBack" title="Назад (Alt+←)" onclick="hist(-1)">◀</button>
+  <button title="Вперёд (Alt+→)" onclick="hist(1)">▶</button>
+  <button title="Наверх (Backspace)" onclick="up()">▲</button>
+  <button title="Обновить (F5)" onclick="render()">⟳</button>
+  <input id="path" spellcheck="false">
+  <button id="fav" title="В избранное (Ctrl+D)" onclick="toggleFav()">★</button>
+  <input id="q" placeholder="Поиск (Ctrl+F)">
+  <button title="Тема" onclick="toggleTheme()">◐</button>
+ </div>
+ <div id="main">
+  <div id="side"></div>
+  <div id="files"><div id="head"></div><div id="list"></div></div>
+ </div>
+ <div id="status"><div id="st"></div><div id="msg"></div></div>
+</div>
+<div id="menu"></div>
+<div id="mod"><div class="box"><div id="mt"></div><input id="mi"><div><button id="mok">OK</button><button onclick="closeMod()">Отмена</button></div></div></div>
 
-    <div id="toolbar">
-        <button onclick="goBack()" title="Back">←</button>
-        <button onclick="goForward()" title="Forward">→</button>
-        <button onclick="goUp()" title="Up one level">↑</button>
-        <button onclick="refreshCurrent()" title="Refresh">↻</button>
-        <input type="text" id="pathInput" placeholder="Type a path and press Enter..." onkeydown="if(event.keyCode===13)goToPath()" />
-        <button id="goBtn" onclick="goToPath()">Go</button>
-    </div>
+<script type="text/javascript">
+var fso=new ActiveXObject("Scripting.FileSystemObject");
+var sh=new ActiveXObject("WScript.Shell");
+var shApp=new ActiveXObject("Shell.Application");
+var tabs=[],cur=0,clip=null,favs=[],theme="light",view=[],lastIdx=-1,places=[],modCb=null,msgT=null,mItems=[];
+var INI=sh.ExpandEnvironmentStrings("%APPDATA%")+"\\HTA-FileManager.ini";
+var ARCH={zip:1,tar:1,gz:1,tgz:1,"7z":1,rar:1};
 
-    <div id="contentArea"></div>
+function $(i){return document.getElementById(i);}
+function T(){return tabs[cur];}
+function h(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function ext(n){var i=n.lastIndexOf(".");return i>0?n.substr(i+1).toLowerCase():"";}
+function fs(n){if(n<1024)return n+" Б";var u=["КБ","МБ","ГБ","ТБ"],i=-1;do{n/=1024;i++;}while(n>=1024&&i<3);return n.toFixed(n<10?1:0)+" "+u[i];}
+function fd(ms){if(!ms)return "";var d=new Date(ms);function z(x){return x<10?"0"+x:x;}return z(d.getDate())+"."+z(d.getMonth()+1)+"."+d.getFullYear()+" "+z(d.getHours())+":"+z(d.getMinutes());}
+function ttl(p){if(p==="")return "Этот компьютер";return fso.GetFileName(p)||p;}
+function stop(e){if(e.preventDefault)e.preventDefault();else e.returnValue=false;}
+function toast(s){$("msg").innerHTML=h(s);clearTimeout(msgT);if(s)msgT=setTimeout(function(){$("msg").innerHTML="";},5000);}
+
+/* ---------- настройки ---------- */
+function loadCfg(){try{if(!fso.FileExists(INI))return;var f=fso.OpenTextFile(INI,1,false,-1),s=f.ReadAll();f.Close();var L=s.split(/\r?\n/);for(var i=0;i<L.length;i++){if(L[i].indexOf("fav=")==0)favs.push(L[i].substr(4));else if(L[i]=="theme=dark")theme="dark";}}catch(e){}}
+function saveCfg(){try{var f=fso.CreateTextFile(INI,true,true);f.WriteLine("theme="+theme);for(var i=0;i<favs.length;i++)f.WriteLine("fav="+favs[i]);f.Close();}catch(e){}}
+function applyTheme(){document.body.className=theme=="dark"?"dark":"";}
+function toggleTheme(){theme=theme=="dark"?"light":"dark";applyTheme();saveCfg();}
+function favIdx(p){for(var i=0;i<favs.length;i++)if(favs[i].toLowerCase()==p.toLowerCase())return i;return -1;}
+function toggleFav(){var p=T().path;if(p==="")return;var i=favIdx(p);if(i>=0)favs.splice(i,1);else favs.push(p);saveCfg();render();}
+function delFav(i,e){e=e||event;e.cancelBubble=true;favs.splice(i,1);saveCfg();render();}
+
+/* ---------- навигация ---------- */
+function norm(p){p=sh.ExpandEnvironmentStrings(p).replace(/^\s+|\s+$/g,"").replace(/^"|"$/g,"");if(/^[A-Za-z]:$/.test(p))p+="\\";if(p.length>3)p=p.replace(/\\+$/,"");return p;}
+function nav(p,back){
+ var t=T();p=norm(p);
+ if(p!==""&&!fso.FolderExists(p)){if(fso.FileExists(p)){openPath(p);return;}toast("Путь не найден: "+p);render();return;}
+ if(!back){t.h=t.h.slice(0,t.i+1);if(t.h[t.h.length-1]!==p)t.h.push(p);t.i=t.h.length-1;}
+ t.path=p;t.sel={};t.filter="";$("q").value="";lastIdx=-1;render();
+}
+function hist(d){var t=T(),n=t.i+d;if(n<0||n>=t.h.length)return;t.i=n;nav(t.h[n],true);}
+function up(){var t=T();if(t.path==="")return;nav(fso.GetParentFolderName(t.path));}
+function newTab(p){tabs.push({path:"",h:[],i:-1,col:"name",asc:true,sel:{},filter:""});cur=tabs.length-1;nav(p);}
+function selTab(k){cur=k;$("q").value=T().filter;lastIdx=-1;render();}
+function closeTab(k,e){e=e||event;e.cancelBubble=true;if(tabs.length==1){window.close();return;}tabs.splice(k,1);if(cur>=tabs.length)cur=tabs.length-1;else if(k<cur)cur--;$("q").value=T().filter;render();}
+function goSide(k){nav(sideP[k]);}
+var sideP=[];
+
+/* ---------- чтение папки ---------- */
+function readDir(p){
+ var out=[],e,x;
+ if(p===""){e=new Enumerator(fso.Drives);for(;!e.atEnd();e.moveNext()){x=e.item();var lbl="",sz=0;try{if(x.IsReady){lbl=x.VolumeName;sz=x.TotalSize;}}catch(z){}out.push({n:x.DriveLetter+":\\"+(lbl?"  "+lbl:""),p:x.DriveLetter+":\\",d:1,s:sz,m:0,t:"Диск"});}return out;}
+ try{
+  var f=fso.GetFolder(p);
+  e=new Enumerator(f.SubFolders);for(;!e.atEnd();e.moveNext()){x=e.item();try{out.push({n:x.Name,p:x.Path,d:1,s:0,m:new Date(x.DateLastModified).getTime(),t:"Папка"});}catch(z){}}
+  e=new Enumerator(f.Files);for(;!e.atEnd();e.moveNext()){x=e.item();try{var xt=ext(x.Name);out.push({n:x.Name,p:x.Path,d:0,s:x.Size,m:new Date(x.DateLastModified).getTime(),t:xt?xt.toUpperCase():"Файл"});}catch(z){}}
+ }catch(ex){toast("Нет доступа к папке");}
+ return out;
+}
+function cmpS(a,b){return a.toLowerCase().localeCompare(b.toLowerCase());}
+function sortBy(c){var t=T();if(t.col==c)t.asc=!t.asc;else{t.col=c;t.asc=true;}t.sel={};render();}
+function sortList(a,t){var c=t.col,k=t.asc?1:-1;a.sort(function(x,y){if(x.d!=y.d)return y.d-x.d;var r;
+ if(c=="name")r=cmpS(x.n,y.n);else if(c=="type")r=cmpS(x.t,y.t)||cmpS(x.n,y.n);else if(c=="size")r=x.s-y.s;else r=x.m-y.m;return r*k;});}
+
+/* ---------- отрисовка ---------- */
+function render(){
+ var t=T(),a=readDir(t.path),q=t.filter.toLowerCase(),i;
+ if(q){var b=[];for(i=0;i<a.length;i++)if(a[i].n.toLowerCase().indexOf(q)>-1)b.push(a[i]);a=b;}
+ sortList(a,t);view=a;
+ var cols='<colgroup><col><col style="width:80px"><col style="width:90px"><col style="width:130px"></colgroup>';
+ function th(c,l){return '<th onclick="sortBy(\''+c+'\')">'+l+(t.col==c?(t.asc?" ▲":" ▼"):"")+'</th>';}
+ $("head").innerHTML='<table>'+cols+'<tr>'+th("name","Имя")+th("type","Тип")+th("size","Размер")+th("date","Изменён")+'</tr></table>';
+ var r=['<table>'+cols];
+ for(i=0;i<a.length;i++){var it=a[i];r.push('<tr id="r'+i+'"><td>'+(it.d?"📁 ":"📄 ")+h(it.n)+'</td><td>'+h(it.t)+'</td><td>'+(it.d&&it.t!="Диск"?"":fs(it.s))+'</td><td>'+fd(it.m)+'</td></tr>');}
+ r.push('</table>');
+ if(!a.length)r.push('<div class="empty">'+(q?"Ничего не найдено":"Здесь пусто")+'</div>');
+ $("list").innerHTML=r.join("");
+ $("path").value=t.path;
+ $("fav").className=favIdx(t.path)>=0?"on":"";
+ var tb=[];for(i=0;i<tabs.length;i++)tb.push('<div class="tab'+(i==cur?' act':'')+'" onclick="selTab('+i+')">'+h(ttl(tabs[i].path))+'<b onclick="closeTab('+i+',event)">×</b></div>');
+ tb.push('<div class="tab plus" onclick="newTab(T().path)">+</div>');
+ $("tabs").innerHTML=tb.join("");
+ side();paintSel();
+}
+function side(){
+ var s=['<div class="sh">Быстрый доступ</div>'],cp=T().path.toLowerCase(),i;sideP=[];
+ for(i=0;i<places.length;i++){sideP.push(places[i][1]);s.push('<div class="si" onclick="goSide('+(sideP.length-1)+')">'+h(places[i][0])+'</div>');}
+ if(favs.length){s.push('<div class="sh">Избранное</div>');for(i=0;i<favs.length;i++){sideP.push(favs[i]);s.push('<div class="si" title="'+h(favs[i])+'" onclick="goSide('+(sideP.length-1)+')">★ '+h(ttl(favs[i]))+'<b onclick="delFav('+i+',event)">×</b></div>');}}
+ $("side").innerHTML=s.join("");
+}
+function paintSel(){
+ var t=T(),n=0,sz=0,cs={},i;
+ if(clip&&clip.cut)for(i=0;i<clip.p.length;i++)cs[clip.p[i].toLowerCase()]=1;
+ for(i=0;i<view.length;i++){var r=$("r"+i);if(!r)continue;var on=t.sel[i];if(on){n++;if(!view[i].d)sz+=view[i].s;}r.className=(on?"sel":"")+(cs[view[i].p.toLowerCase()]?" cut":"");}
+ $("st").innerHTML=view.length+" элем."+(n?" · выбрано: "+n+(sz?" ("+fs(sz)+")":""):"");
+}
+function selItems(){var t=T(),a=[];for(var i=0;i<view.length;i++)if(t.sel[i])a.push(view[i]);return a;}
+function selectByPath(p){var t=T();t.sel={};for(var i=0;i<view.length;i++)if(view[i].p.toLowerCase()==p.toLowerCase()){t.sel[i]=1;lastIdx=i;var r=$("r"+i);if(r&&r.scrollIntoView)r.scrollIntoView(false);}paintSel();}
+
+/* ---------- открытие ---------- */
+function openItem(it){if(it.d)nav(it.p);else openPath(it.p);}
+function openPath(p){
+ if(ARCH[ext(p)]){extract(p);return;}
+ try{shApp.ShellExecute(p);}catch(e){toast("Не удалось открыть: "+p);}
+}
+function extract(p){
+ toast("Распаковка…");
+ setTimeout(function(){
+  try{
+   var base=sh.ExpandEnvironmentStrings("%TEMP%")+"\\HTA-FM";if(!fso.FolderExists(base))fso.CreateFolder(base);
+   var d=base+"\\"+fso.GetBaseName(p)+"_"+(new Date().getTime());fso.CreateFolder(d);
+   var rc=sh.Run('cmd /c tar -xf "'+p+'" -C "'+d+'"',0,true);
+   if(rc!==0){toast("Не удалось распаковать (код "+rc+")");return;}
+   toast("");nav(d);
+  }catch(e){toast("Ошибка распаковки: "+e.message);}
+ },30);
+}
+
+/* ---------- файловые операции ---------- */
+function doCopy(){var s=selItems();if(!s.length)return;clip={p:[],cut:false};for(var i=0;i<s.length;i++)clip.p.push(s[i].p);paintSel();toast("Скопировано: "+s.length);}
+function doCut(){var s=selItems();if(!s.length||T().path==="")return;clip={p:[],cut:true};for(var i=0;i<s.length;i++)clip.p.push(s[i].p);paintSel();toast("Вырезано: "+s.length);}
+function paste(){
+ var t=T();if(!clip||!clip.p.length){toast("Буфер пуст");return;}
+ if(t.path===""){toast("Откройте папку, чтобы вставить");return;}
+ var dst=shApp.NameSpace(t.path);if(!dst){toast("Нельзя вставить сюда");return;}
+ for(var i=0;i<clip.p.length;i++){try{if(clip.cut)dst.MoveHere(clip.p[i],0);else dst.CopyHere(clip.p[i],0);}catch(e){toast("Ошибка: "+clip.p[i]);}}
+ if(clip.cut)clip=null;
+ render();setTimeout(render,700);setTimeout(render,2500);
+}
+function doDelete(perm){
+ var t=T(),s=selItems(),i;if(!s.length||t.path==="")return;
+ if(perm){
+  if(!confirm("Удалить навсегда: "+s.length+" шт.? Вернуть будет нельзя."))return;
+  for(i=0;i<s.length;i++){try{if(s[i].d)fso.DeleteFolder(s[i].p,true);else fso.DeleteFile(s[i].p,true);}catch(e){toast("Не удалось удалить: "+s[i].n);}}
+ }else{
+  var ns=shApp.NameSpace(t.path);
+  for(i=0;i<s.length;i++){try{ns.ParseName(s[i].n).InvokeVerb("delete");}catch(e){toast("Не удалось удалить: "+s[i].n);}}
+ }
+ t.sel={};render();setTimeout(render,500);
+}
+function doRename(){
+ var s=selItems();if(s.length!=1||T().path==="")return;var it=s[0];
+ askName("Переименовать",it.n,function(nn){
+  if(!nn||nn==it.n)return;
+  if(/[\\\/:*?"<>|]/.test(nn)){toast("Имя содержит недопустимые символы");return;}
+  var np=fso.BuildPath(fso.GetParentFolderName(it.p),nn);
+  if(fso.FileExists(np)||fso.FolderExists(np)){toast("Такое имя уже существует");return;}
+  try{if(it.d)fso.GetFolder(it.p).Name=nn;else fso.GetFile(it.p).Name=nn;}catch(e){toast("Не удалось переименовать: "+e.message);}
+  render();selectByPath(np);
+ });
+}
+function uniq(dir,name,isDir){var p=fso.BuildPath(dir,name),b=name,x="",i=1;var dot=isDir?-1:name.lastIndexOf(".");if(dot>0){b=name.substr(0,dot);x=name.substr(dot);}
+ while(fso.FileExists(p)||fso.FolderExists(p)){i++;p=fso.BuildPath(dir,b+" ("+i+")"+x);}return p;}
+function newFolder(){var t=T();if(t.path==="")return;askName("Новая папка","Новая папка",function(n){if(!n)return;try{var p=uniq(t.path,n,true);fso.CreateFolder(p);render();selectByPath(p);}catch(e){toast("Не удалось создать папку: "+e.message);}});}
+function newFile(){var t=T();if(t.path==="")return;askName("Новый текстовый файл","Новый файл.txt",function(n){if(!n)return;try{var p=uniq(t.path,n,false);fso.CreateTextFile(p,false).Close();render();selectByPath(p);}catch(e){toast("Не удалось создать файл: "+e.message);}});}
+function doProps(){var s=selItems(),t=T();if(s.length!=1)return;try{if(t.path==="")shApp.NameSpace(17).ParseName(s[0].p.substr(0,2)).InvokeVerb("properties");else shApp.NameSpace(t.path).ParseName(s[0].n).InvokeVerb("properties");}catch(e){toast("Свойства недоступны");}}
+
+/* ---------- диалог ввода ---------- */
+function askName(title,val,cb){$("mt").innerHTML=h(title);$("mi").value=val;modCb=cb;$("mod").style.display="block";var i=$("mi");i.focus();var d=val.lastIndexOf(".");if(d>0&&title!="Новая папка")i.setSelectionRange(0,d);else i.select();}
+function closeMod(){$("mod").style.display="none";modCb=null;}
+function okMod(){var v=$("mi").value.replace(/^\s+|\s+$/g,""),cb=modCb;closeMod();if(cb)cb(v);}
+$("mok").onclick=okMod;
+$("mi").onkeydown=function(e){e=e||event;if(e.keyCode==13)okMod();else if(e.keyCode==27)closeMod();e.cancelBubble=true;};
+
+/* ---------- контекстное меню ---------- */
+function showMenu(x,y){
+ var t=T(),s=selItems(),one=s.length==1,here=t.path!=="",A=[];
+ if(s.length){A.push(["Открыть",function(){for(var i=0;i<s.length;i++)openItem(s[i]);},1]);A.push(0);A.push(["Копировать\tCtrl+C",doCopy,1]);A.push(["Вырезать\tCtrl+X",doCut,here]);}
+ A.push(["Вставить\tCtrl+V",paste,here&&!!clip]);
+ if(s.length){A.push(0);A.push(["Переименовать\tF2",doRename,one&&here]);A.push(["Удалить\tDel",function(){doDelete(false);},here]);}
+ A.push(0);A.push(["Новая папка",newFolder,here]);A.push(["Новый текстовый файл",newFile,here]);
+ if(one)A.push(["Свойства",doProps,1]);
+ A.push(0);A.push(["Обновить\tF5",render,1]);
+ mItems=A;var r=[];
+ for(var i=0;i<A.length;i++){if(!A[i])r.push("<hr>");else r.push('<div class="'+(A[i][2]?"":"off")+'" onclick="runMenu('+i+')">'+h(A[i][0].replace("\t","   "))+'</div>');}
+ var m=$("menu");m.innerHTML=r.join("");m.style.display="block";
+ m.style.left=Math.max(0,Math.min(x,document.body.clientWidth-m.offsetWidth-4))+"px";
+ m.style.top=Math.max(0,Math.min(y,document.body.clientHeight-m.offsetHeight-4))+"px";
+}
+function runMenu(i){var a=mItems[i];hideMenu();if(a&&a[2])a[1]();}
+function hideMenu(){$("menu").style.display="none";}
+function menuOpen(){return $("menu").style.display=="block";}
+
+/* ---------- мышь ---------- */
+function rowOf(e){var el=e.target||e.srcElement;while(el&&el.tagName!="TR")el=el.parentNode;return el&&el.id&&el.id.charAt(0)=="r"?parseInt(el.id.substr(1),10):-1;}
+$("list").onmousedown=function(e){
+ e=e||event;var t=T(),i=rowOf(e),k;
+ if(i<0){if(e.clientX>$("list").getBoundingClientRect().right-18)return;t.sel={};lastIdx=-1;paintSel();return;}
+ if(e.button==2){if(!t.sel[i]){t.sel={};t.sel[i]=1;}lastIdx=i;}
+ else if(e.shiftKey&&lastIdx>=0){t.sel={};for(k=Math.min(lastIdx,i);k<=Math.max(lastIdx,i);k++)t.sel[k]=1;}
+ else if(e.ctrlKey){if(t.sel[i])delete t.sel[i];else t.sel[i]=1;lastIdx=i;}
+ else{t.sel={};t.sel[i]=1;lastIdx=i;}
+ paintSel();
+};
+$("list").ondblclick=function(e){e=e||event;var i=rowOf(e);if(i>=0)openItem(view[i]);};
+$("list").oncontextmenu=function(e){e=e||event;showMenu(e.clientX,e.clientY);return false;};
+document.onmousedown=function(e){e=e||event;var el=e.target||e.srcElement;while(el){if(el.id=="menu")return;el=el.parentNode;}hideMenu();};
+document.oncontextmenu=function(){return false;};
+$("path").onkeydown=function(e){e=e||event;if(e.keyCode==13){nav(this.value);$("list").focus();}};
+$("q").oninput=$("q").onkeyup=function(){var t=T();if(t.filter!==this.value){t.filter=this.value;t.sel={};render();}};
+
+/* ---------- клавиатура ---------- */
+function moveSel(d,ext){
+ var t=T();if(!view.length)return;var i=lastIdx<0?(d>0?0:view.length-1):Math.max(0,Math.min(view.length-1,lastIdx+d));
+ if(ext&&lastIdx>=0){t.sel[i]=1;}else{t.sel={};t.sel[i]=1;}lastIdx=i;paintSel();var r=$("r"+i);if(r&&r.scrollIntoView)r.scrollIntoView(d<0);
+}
+document.onkeydown=function(e){
+ e=e||event;var k=e.keyCode,c=e.ctrlKey,inp=(e.target||e.srcElement).tagName=="INPUT",t=T();
+ if($("mod").style.display=="block")return;
+ if(k==27){if(menuOpen()){hideMenu();return;}if(inp||t.filter){$("q").value="";t.filter="";document.activeElement.blur();render();return;}window.close();return;}
+ if(c&&k==70){stop(e);$("q").focus();$("q").select();return;}
+ if(c&&k==76){stop(e);$("path").focus();$("path").select();return;}
+ if(inp&&!c)return;
+ if(k==116){stop(e);render();}
+ else if(k==8&&!inp){stop(e);up();}
+ else if(e.altKey&&k==37){stop(e);hist(-1);}
+ else if(e.altKey&&k==39){stop(e);hist(1);}
+ else if(e.altKey&&k==38){stop(e);up();}
+ else if(k==46){stop(e);doDelete(e.shiftKey);}
+ else if(k==113){stop(e);doRename();}
+ else if(k==13){var s=selItems();for(var i=0;i<s.length;i++)openItem(s[i]);}
+ else if(k==38){stop(e);moveSel(-1,e.shiftKey);}
+ else if(k==40){stop(e);moveSel(1,e.shiftKey);}
+ else if(c&&k==67&&!inp){stop(e);doCopy();}
+ else if(c&&k==88&&!inp){stop(e);doCut();}
+ else if(c&&k==86&&!inp){stop(e);paste();}
+ else if(c&&k==65&&!inp){stop(e);t.sel={};for(var j=0;j<view.length;j++)t.sel[j]=1;paintSel();}
+ else if(c&&k==84){stop(e);newTab(t.path);}
+ else if(c&&k==87){stop(e);closeTab(cur,e);}
+ else if(c&&k==68){stop(e);toggleFav();}
+ else if(c&&e.shiftKey&&k==78){stop(e);newFolder();}
+};
+
+/* ---------- старт ---------- */
+window.onload=function(){
+ try{window.resizeTo(1100,700);window.moveTo((screen.availWidth-1100)/2,(screen.availHeight-700)/2);}catch(e){}
+ loadCfg();applyTheme();
+ var home=sh.ExpandEnvironmentStrings("%USERPROFILE%");
+ places=[["Этот компьютер",""],["Рабочий стол",sh.SpecialFolders("Desktop")],["Документы",sh.SpecialFolders("MyDocuments")],["Загрузки",home+"\\Downloads"]];
+ newTab(home);
+};
+</script>
 </body>
 </html>
